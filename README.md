@@ -4,8 +4,10 @@ The **Time Management Plan Generator** is a smart web application designed to he
 
 Live Link: https://time-mangement-tool.netlify.app/
 
-![Project Preview]([https://ibb.co.com/hJQxmKD8](https://i.ibb.co.com/pBV6L3JX/Screenshot-2025-12-10-194928.png)) 
-*(Replace with actual screenshot after deployment)*
+<h1> Project Previw </h1>
+<p align="left">
+<img src="https://i.ibb.co.com/1Y61TnBp/Screenshot-2025-12-10-194928.png" alt="Project Preview" width="40%">
+<p/>
 
 ## 🚀 Key Features
 
