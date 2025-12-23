@@ -6,7 +6,7 @@ Live Link: https://time-mangement-tool.netlify.app/
 
 <h1> Project Previw </h1>
 <p align="left">
-<img src="https://i.ibb.co.com/1Y61TnBp/Screenshot-2025-12-10-194928.png" alt="Project Preview" width="40%">
+<img src="https://i.ibb.co.com/TqDc7hJV/Screenshot-2025-12-23-201401.png" alt="Project Preview" width="40%">
 <p/>
 
 ## 🚀 Key Features
@@ -16,7 +16,8 @@ Live Link: https://time-mangement-tool.netlify.app/
     *   **Same Day (🌤️)**: Gentle pace with 40% break time. Perfect for recovery.
     *   **Normal Day (⚡)**: Sustainable 75/25 work-break ratio. Best for daily grind.
     *   **Hustle Mode (🔥)**: Intense 85% work focus. For when deadlines are looming.
-*   **🎨 Beautiful, Responsive UI**: Built with a "premium-first" design philosophy using glassmorphism, smooth gradients, and micro-animations.
+*   **🎨 Beautiful, Responsive UI**: Built with a "premium-first" design philosophy using glassmorphism, clean solid colors, and micro-animations.
+*   **⌨️ Quick Task Entry**: Simply type your task and press **Enter** to add it instantly to your list.
 *   **⏱️ Real-time Progress Tracking**: Interactive timeline with check-off functionality, progress bars, and completion stats.
 *   **🏆 Gamified Completion**: Celebrate your productivity wins with a "Mission Accomplished" reward system.
 
@@ -27,7 +28,7 @@ This project was built with a philosophy of **Simplicity** and **Performance**. 
 *   **HTML5**: Semantic and accessible markup.
 *   **Tailwind CSS**: Utility-first styling for rapid, beautiful UI development.
 *   **Vanilla JavaScript (ES6+)**: Core logic, state management, and DOM manipulation without external dependencies.
-*   **Netlify Ready**: Structured perfectly for instant static deployment.
+
 
 ## 🎯 Who is this for?
 
