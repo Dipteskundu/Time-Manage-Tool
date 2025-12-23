@@ -1,377 +1,421 @@
-/**
- * Time Management Plan Generator
- * Core Logic Script
- */
 
-// Application State
-const appState = {
-    tasks: [],
-    totalHours: 8,
-    startTime: '07:00', // Default morning
-    intensity: 'normal',
-    generatedSchedule: [],
-    completedTasks: new Set()
-};
 
-// DOM Elements
-const elements = {
-    taskInput: document.getElementById('taskInput'),
-    addTaskBtn: document.getElementById('addTaskBtn'),
-    taskList: document.getElementById('taskList'),
-    emptyTasksMsg: document.getElementById('emptyTasksMsg'),
-    hoursSlider: document.getElementById('hoursSlider'),
-    hoursDisplay: document.getElementById('hoursDisplay'),
-    generateBtn: document.getElementById('generateBtn'),
-    dashboardSection: document.getElementById('dashboardSection'),
-    timelineContainer: document.getElementById('timelineContainer'),
-    progressBar: document.getElementById('progressBar'),
-    progressText: document.getElementById('progressText'),
-    statProductiveTime: document.getElementById('statProductiveTime'),
-    statBreakTime: document.getElementById('statBreakTime'),
-    statCompletion: document.getElementById('statCompletion'),
-    celebrationModal: document.getElementById('celebrationModal'),
-    strategyTip: document.getElementById('strategyTip')
-};
+    // --- 1. DATA & STATE ---
 
-// Event Listeners Initialization
-function initListeners() {
-    console.log("Initializing app...");
-
-    // Add Task Events
-    elements.addTaskBtn.addEventListener('click', handleAddTask);
-    elements.taskInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleAddTask();
-    });
-
-    // Slider Event
-    elements.hoursSlider.addEventListener('input', (e) => {
-        appState.totalHours = parseFloat(e.target.value);
-        elements.hoursDisplay.innerText = `${appState.totalHours} hour${appState.totalHours !== 1 ? 's' : ''}`;
-    });
-
-    // Radio Button Events (Delegation)
-    document.querySelectorAll('input[name="startTime"]').forEach(radio => {
-        radio.addEventListener('change', (e) => appState.startTime = e.target.value);
-    });
-
-    document.querySelectorAll('input[name="intensity"]').forEach(radio => {
-        radio.addEventListener('change', (e) => appState.intensity = e.target.value);
-    });
-
-    // Generate Button
-    elements.generateBtn.addEventListener('click', generateSchedule);
-}
-
-// --- Core Logic Implementation ---
-
-function handleAddTask() {
-    const text = elements.taskInput.value.trim();
-    if (!text) return;
-
-    // Check for duplicates (case-insensitive)
-    if (appState.tasks.some(t => t.toLowerCase() === text.toLowerCase())) {
-        alert("Task already exists!");
-        return;
-    }
-
-    appState.tasks.push(text);
-    renderTaskList();
-    elements.taskInput.value = '';
-    elements.taskInput.focus();
-}
-
-function removeTask(index) {
-    appState.tasks.splice(index, 1);
-    renderTaskList();
-}
-
-function renderTaskList() {
-    elements.taskList.innerHTML = '';
-
-    if (appState.tasks.length === 0) {
-        elements.taskList.appendChild(elements.emptyTasksMsg);
-        return;
-    }
-
-    appState.tasks.forEach((task, index) => {
-        // Assign a consistent gradient based on index
-        const gradientClass = `bg-gradient-${(index % 6) + 1}`;
-
-        const chip = document.createElement('div');
-        chip.className = `${gradientClass} text-white px-4 py-2 rounded-full shadow-sm flex items-center gap-2 transform transition-all hover:scale-105 hover:shadow-md animate-slide-in-right`;
-        chip.innerHTML = `
-            <span class="font-medium">${task}</span>
-            <button onclick="removeTask(${index})" class="bg-white/20 hover:bg-white/40 rounded-full w-5 h-5 flex items-center justify-center transition-colors text-xs" aria-label="Remove task">
-                ✕
-            </button>
-        `;
-        // Add animation class directly via style for uniqueness if needed, but CSS class handles it
-        chip.style.animation = `slideInRight 0.3s ease-out forwards`;
-        elements.taskList.appendChild(chip);
-    });
-}
-
-// --- Scheduling Algorithm ---
-
-function generateSchedule() {
-    if (appState.tasks.length === 0) {
-        alert("Please add at least one task!");
-        return;
-    }
-
-    // SCROLL TO DASHBOARD
-    elements.dashboardSection.classList.remove('hidden');
-    elements.dashboardSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-    // 1. Configuration
-    const MODE_CONFIG = {
-        light: { workRatio: 0.60, minSession: 25, maxSession: 35 },
-        normal: { workRatio: 0.75, minSession: 30, maxSession: 45 },
-        hustle: { workRatio: 0.85, minSession: 40, maxSession: 60 }
+    let state = {
+      tasks: [],
+      intensity: 'normal',
+      hoursAvailable: 8,
+      scheduleWindow: 'morning',
+      schedule: [],
+      showCongratsModal: false,
     };
 
-    const config = MODE_CONFIG[appState.intensity];
-    const totalMinutes = appState.totalHours * 60;
+    const CONFIG = {
+      startTimes: {
+        morning: 7 * 60,    // 7:00 AM
+        day: 9 * 60,        // 9:00 AM
+        evening: 18 * 60,   // 6:00 PM
+        night: 22 * 60      // 10:00 PM
+      },
+      intensity: {
+        light: { work: 0.60, min: 25, max: 35, breakMin: 12, breakMax: 15, emoji: '🌤️', color: 'green', name: 'Light' },
+        normal: { work: 0.75, min: 30, max: 45, breakMin: 8, breakMax: 12, emoji: '⚡', color: 'purple', name: 'Normal' },
+        hustle: { work: 0.85, min: 40, max: 60, breakMin: 5, breakMax: 10, emoji: '🔥', color: 'orange', name: 'Hustle' }
+      }
+    };
 
-    // 2. Initialize Variables
-    let schedule = [];
-    let currentTime = timeStringToDate(appState.startTime);
-    let remainingWorkMinutes = Math.floor(totalMinutes * config.workRatio);
-    let remainingBreakMinutes = totalMinutes - remainingWorkMinutes;
+    // --- LOCAL STORAGE FUNCTIONS ---
 
-    // 3. Task Randomization (Fisher-Yates Shuffle)
-    let shuffledTasks = [...appState.tasks];
-    for (let i = shuffledTasks.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffledTasks[i], shuffledTasks[j]] = [shuffledTasks[j], shuffledTasks[i]];
+    function saveToLocalStorage() {
+      try {
+        localStorage.setItem('timeManagementPlan', JSON.stringify(state.schedule));
+      } catch (error) {
+        console.error('Failed to save to localStorage:', error);
+      }
     }
 
-    // Determine number of rotations needed to cover all tasks or fit available time
-    // We want to ensure every task gets at least one slot if possible
-
-    let taskQueue = [...shuffledTasks];
-    let slots = [];
-
-    // Preliminary allocation
-    // We need to loop until we run out of work minutes
-
-    while (remainingWorkMinutes > 15) { // Stop if less than 15 mins left
-        // Pick next task
-        if (taskQueue.length === 0) {
-            taskQueue = [...shuffledTasks]; // Refill if done with one round
+    function loadFromLocalStorage() {
+      try {
+        const saved = localStorage.getItem('timeManagementPlan');
+        if (saved) {
+          state.schedule = JSON.parse(saved);
         }
-        const taskName = taskQueue.shift();
+      } catch (error) {
+        console.error('Failed to load from localStorage:', error);
+      }
+    }
 
-        // Calculate duration for this slot
-        let duration = Math.floor(Math.random() * (config.maxSession - config.minSession + 1)) + config.minSession;
+    function clearLocalStorage() {
+      if (confirm('Are you sure you want to clear your saved plan? This cannot be undone.')) {
+        localStorage.removeItem('timeManagementPlan');
+        state.schedule = [];
+        render();
+      }
+    }
 
-        // Cap duration if it exceeds remaining time
-        if (duration > remainingWorkMinutes) {
-            duration = remainingWorkMinutes;
-        }
+    // --- 2. ACTIONS (User Interactions) ---
 
-        slots.push({
-            type: 'work',
-            name: taskName,
-            duration: duration,
-            completed: false
+    function addTask() {
+      const input = document.getElementById('taskInput');
+      const taskName = input.value.trim();
+
+      if (taskName && !state.tasks.includes(taskName)) {
+        state.tasks.push(taskName);
+        input.value = ''; // Reset input
+        render();
+      } else if (state.tasks.includes(taskName)) {
+        alert('Task already exists!');
+      }
+    }
+
+    function removeTask(index) {
+      state.tasks.splice(index, 1);
+      state.schedule = []; // Reset schedule as data changed
+      render();
+    }
+
+    function updateHours(value) {
+      state.hoursAvailable = parseInt(value);
+      render();
+    }
+
+    function updateWindow(value) {
+      state.scheduleWindow = value;
+      render();
+    }
+
+    function setIntensity(level) {
+      state.intensity = level;
+      render();
+    }
+
+    function toggleTaskComplete(index) {
+      // Toggle status
+      state.schedule[index].completed = !state.schedule[index].completed;
+
+      // Save to localStorage
+      saveToLocalStorage();
+
+      // Check if all tasks are done
+      const tasks = state.schedule.filter(item => item.type === 'task');
+      const allComplete = tasks.every(t => t.completed);
+
+      if (allComplete && tasks.length > 0) {
+        state.showCongratsModal = true;
+      }
+
+      render(); // Default render (no animation) to prevent bouncing
+    }
+
+    function closeCongratsModal() {
+      state.showCongratsModal = false;
+      render();
+    }
+
+    // --- 3. LOGIC (The Brains) ---
+
+    function generatePlan() {
+      if (state.tasks.length === 0) {
+        alert('Please add tasks first!');
+        return;
+      }
+
+      const settings = CONFIG.intensity[state.intensity];
+      const totalMinutes = state.hoursAvailable * 60;
+
+      // Calculate reliable work time
+      const maxWorkMinutes = Math.floor(totalMinutes * settings.work);
+
+      let currentTime = CONFIG.startTimes[state.scheduleWindow];
+      let timeLeft = maxWorkMinutes; // "Bucket" of time to fill
+
+      // Randomize task order
+      const randomTasks = [...state.tasks].sort(() => Math.random() - 0.5);
+
+      let newSchedule = [];
+      let taskIndex = 0;
+
+      // Loop until we run out of time or reasonable cycles
+      while (timeLeft > 15 && taskIndex < randomTasks.length * 4) {
+        const taskName = randomTasks[taskIndex % randomTasks.length];
+
+        // Determine random session length within limits
+        const randomDuration = Math.floor(Math.random() * (settings.max - settings.min + 1)) + settings.min;
+        const duration = Math.min(randomDuration, timeLeft);
+
+        // Add Task Block
+        newSchedule.push({
+          type: 'task',
+          name: taskName,
+          duration: duration,
+          startTime: currentTime,
+          endTime: currentTime + duration,
+          color: getTaskColor(taskIndex),
+          completed: false
         });
 
-        remainingWorkMinutes -= duration;
+        currentTime += duration;
+        timeLeft -= duration;
 
-        // Add a break if there is still work time left (don't end on a break usually, but good for pacing)
-        if (remainingWorkMinutes > 0) {
-            // Calculate break duration roughly proportional to the session, 
-            // but constrained by the global break pool
-            let breakDuration = Math.round(duration * (1 - config.workRatio) / config.workRatio);
+        // Add Break Block (if not out of time)
+        if (timeLeft > 15) {
+          const breakDuration = Math.floor(Math.random() * (settings.breakMax - settings.breakMin + 1)) + settings.breakMin;
 
-            // Adjust break to fit 5-minute increments for cleaner times
-            breakDuration = Math.max(5, Math.ceil(breakDuration / 5) * 5);
+          newSchedule.push({
+            type: 'break',
+            duration: breakDuration,
+            startTime: currentTime,
+            endTime: currentTime + breakDuration,
+            completed: false
+          });
 
-            // If we are running low on break pool, shrink it
-            if (remainingBreakMinutes < breakDuration) {
-                breakDuration = remainingBreakMinutes;
-            }
-
-            if (breakDuration > 0) {
-                slots.push({
-                    type: 'break',
-                    name: 'Break / Coffee ☕',
-                    duration: breakDuration,
-                    completed: false
-                });
-                remainingBreakMinutes -= breakDuration;
-            }
+          currentTime += breakDuration;
         }
+
+        taskIndex++;
+      }
+
+      state.schedule = newSchedule;
+      saveToLocalStorage(); // Save plan to localStorage
+      render(true); // Trigger animation on new plan
     }
 
-    // If we have excess break time left, distribute it into existing breaks
-    if (remainingBreakMinutes > 0 && slots.length > 0) {
-        const breakSlots = slots.filter(s => s.type === 'break');
-        if (breakSlots.length > 0) {
-            const extraPerBreak = Math.floor(remainingBreakMinutes / breakSlots.length);
-            breakSlots.forEach(s => s.duration += extraPerBreak);
-        }
+    // Helpers
+    function getTaskColor(index) {
+      const colors = [
+        'blue-500', 'green-500',
+        'purple-500', 'pink-500',
+        'yellow-500', 'indigo-500',
+        'red-500', 'teal-500'
+      ];
+      return colors[index % colors.length];
     }
 
-    // 4. Assign timestamps
-    schedule = slots.map((slot, index) => {
-        const start = new Date(currentTime);
-        currentTime.setMinutes(currentTime.getMinutes() + slot.duration);
-        const end = new Date(currentTime);
+    function formatTime(minutes) {
+      const h = Math.floor(minutes / 60) % 24;
+      const m = minutes % 60;
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const displayH = h % 12 || 12;
+      return `${displayH}:${m.toString().padStart(2, '0')} ${ampm}`;
+    }
 
-        // Assign color index to work tasks
-        let colorIdx = 0;
-        if (slot.type === 'work') {
-            const originalIndex = appState.tasks.indexOf(slot.name);
-            colorIdx = (originalIndex % 6) + 1;
+    // --- 4. UI Rendering (The Visuals) ---
+
+    function render(shouldAnimate = false) {
+      renderTaskList();
+      renderControls();
+      renderDashboard(shouldAnimate);
+      renderModal();
+    }
+
+    function renderTaskList() {
+      const container = document.getElementById('taskList');
+
+      if (state.tasks.length === 0) {
+        container.innerHTML = `<p class="text-gray-400 italic text-center">No tasks added yet.</p>`;
+        return;
+      }
+
+      const html = state.tasks.map((task, i) => `
+        <div class="bg-${getTaskColor(i)} text-white px-4 py-2 rounded-full flex items-center gap-2 shadow-md hover:shadow-lg transition">
+            <span class="font-medium">${task}</span>
+            <button onclick="removeTask(${i})" class="text-white hover:text-red-200 font-bold ml-1">×</button>
+        </div>
+    `).join('');
+
+      container.innerHTML = `<div class="flex flex-wrap gap-2">${html}</div>`;
+    }
+
+    function renderControls() {
+      // Slider
+      document.getElementById('hoursDisplay').textContent = state.hoursAvailable;
+      document.getElementById('hoursSlider').value = state.hoursAvailable;
+
+      // Intensity Buttons
+      // Intensity Buttons
+      ['light', 'normal', 'hustle'].forEach(level => {
+        const btn = document.getElementById(`${level}Btn`);
+        const isActive = state.intensity === level;
+        const color = CONFIG.intensity[level].color;
+
+        // Reset base classes
+        btn.className = `intensity-btn relative group p-8 bg-white border-2 rounded-3xl transition-all duration-300 text-center`;
+
+        if (isActive) {
+          btn.classList.add(`border-purple-500`, `shadow-2xl`, `transform`, `scale-105`, `z-10`);
+        } else {
+          btn.classList.add('border-gray-100', 'hover:border-purple-200', 'hover:shadow-xl');
         }
+      });
+    }
 
-        return {
-            ...slot,
-            id: `slot-${index}`,
-            startStr: formatTime(start),
-            endStr: formatTime(end),
-            colorClass: slot.type === 'work' ? `bg-gradient-${colorIdx}` : 'bg-slate-100 text-slate-500'
-        };
-    });
+    function renderDashboard(animate) {
+      const container = document.getElementById('scheduleOutput');
 
-    appState.generatedSchedule = schedule;
+      if (state.schedule.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
 
-    renderTimeline();
-    updateStats(config);
-    provideStrategyTip();
-}
+      const settings = CONFIG.intensity[state.intensity];
+      const stats = calculateStats();
 
-// --- Rendering & Helpers ---
+      // Animation class
+      const animClass = animate ? 'animate-fade-in' : '';
 
-function timeStringToDate(timeStr) {
-    const d = new Date();
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    d.setHours(hours, minutes, 0, 0);
-    return d;
-}
+      container.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8 border border-gray-100 ${animClass}">
+            ${getDashboardHeader(settings.emoji)}
+            ${getKpCards(stats)}
+            ${getTimeline(state.schedule)}
+            ${getProTip(settings)}
+        </div>
+    `;
+    }
 
-function formatTime(date) {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
+    function calculateStats() {
+      const tasks = state.schedule.filter(s => s.type === 'task');
+      const totalWork = tasks.reduce((acc, curr) => acc + curr.duration, 0);
+      const totalBreak = state.schedule.reduce((acc, curr) => acc + curr.duration, 0) - totalWork;
+      const completed = tasks.filter(t => t.completed).length;
+      const progress = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
 
-function renderTimeline() {
-    elements.timelineContainer.innerHTML = '';
+      return { work: totalWork, break: totalBreak, completed, total: tasks.length, progress };
+    }
 
-    appState.generatedSchedule.forEach((block) => {
-        const div = document.createElement('div');
-        const isWork = block.type === 'work';
-        const isCompleted = appState.completedTasks.has(block.id);
-
-        div.className = `flex gap-4 items-center group ${isCompleted ? 'opacity-50' : ''}`;
-
-        // Time Column
-        const timeCol = `
-            <div class="w-20 text-right text-xs md:text-sm text-slate-500 font-mono pt-2">
-                <div>${block.startStr}</div>
-                <div class="opacity-50">|</div>
-                <div>${block.endStr}</div>
+    function getDashboardHeader(emoji) {
+      return `
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+                <span class="text-4xl">${emoji}</span>
+                <h2 class="text-3xl font-bold text-gray-800">Your Plan</h2>
             </div>
-        `;
-
-        // Content Card
-        let contentClass = isWork
-            ? `${block.colorClass} text-white shadow-lg hover:shadow-xl hover:scale-[1.01]`
-            : `bg-slate-50 border-2 border-slate-100 text-slate-500`;
-
-        contentClass += ` flex-1 p-4 rounded-xl transition-all duration-300 relative overflow-hidden`;
-
-        if (isCompleted) {
-            contentClass += ' task-completed';
-        }
-
-        const checkbox = isWork ? `
-            <button onclick="toggleBlockCompletion('${block.id}')" 
-                class="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full border-2 border-white/50 flex items-center justify-center hover:bg-white/20 transition-all ${isCompleted ? 'bg-white text-indigo-600' : 'text-transparent'}">
-                ✔
+            <button onclick="clearLocalStorage()" 
+                class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl font-semibold transition shadow-lg hover:shadow-xl flex items-center gap-2">
+                <span>🗑️</span> Clear Plan
             </button>
-        ` : '';
+        </div>
+    `;
+    }
 
-        const content = `
-            <div class="${contentClass}">
-                <div class="mr-10">
-                    <div class="font-bold text-lg leading-tight mb-1">${block.name}</div>
-                    <div class="text-xs opacity-90 font-medium flex items-center gap-1">
-                        ⏱️ ${block.duration} mins
-                    </div>
-                </div>
-                ${checkbox}
+    function getKpCards(stats) {
+      const format = m => `${Math.floor(m / 60)}h ${m % 60}m`;
+
+      return `
+        <!-- Progress Bar -->
+        <div class="mb-6">
+            <div class="flex justify-between mb-2 font-semibold">
+                <span>Progress</span>
+                <span class="text-purple-600">${stats.progress}%</span>
             </div>
-        `;
+            <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                <div class="bg-purple-500 h-4 transition-all duration-500" style="width: ${stats.progress}%"></div>
+            </div>
+        </div>
 
-        div.innerHTML = timeCol + content;
-        elements.timelineContainer.appendChild(div);
+        <!-- Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            ${createCard('Productive', format(stats.work), 'text-purple-100', 'purple-600')}
+            ${createCard('Breaks', format(stats.break), 'text-green-100', 'green-600')}
+            ${createCard('Completed', `${stats.completed}/${stats.total}`, 'text-blue-100', 'blue-600')}
+            ${createCard('Score', `${stats.progress}%`, 'text-orange-100', 'red-600')}
+        </div>
+    `;
+    }
+
+    function createCard(title, value, textColor, color) {
+      return `
+        <div class="bg-${color} rounded-xl p-5 text-white shadow-lg">
+            <div class="text-2xl md:text-3xl font-bold mb-1">${value}</div>
+            <div class="${textColor} text-sm font-medium">${title}</div>
+        </div>
+    `;
+    }
+
+    function getTimeline(schedule) {
+      const html = schedule.map((block, index) => {
+        if (block.type === 'task') return getTaskBlockHTML(block, index);
+        return getBreakBlockHTML(block);
+      }).join('');
+
+      return `
+        <div class="mb-6">
+            <h3 class="text-xl font-bold text-gray-700 mb-4">📅 Timeline</h3>
+            <div class="space-y-4">${html}</div>
+        </div>
+    `;
+    }
+
+    function getTaskBlockHTML(block, index) {
+      const done = block.completed;
+      // Conditionals for style
+      const opacity = done ? 'opacity-60 bg-gray-50' : 'bg-white';
+      const border = done ? 'border-green-500' : 'border-purple-500';
+      const decoration = done ? 'line-through' : '';
+      const btnColor = done ? 'bg-green-500' : 'bg-gray-200';
+      const check = done ? '✓' : '';
+
+      return `
+        <div class="${opacity} rounded-xl shadow-md p-5 flex flex-col md:flex-row items-center gap-4 transition-all border-l-4 ${border}">
+            
+            <!-- Time Bubble -->
+            <div class="bg-${block.color} w-16 h-16 rounded-xl flex flex-col items-center justify-center text-white shrink-0">
+                <span class="font-bold text-xl">${block.duration}</span>
+                <span class="text-xs">min</span>
+            </div>
+
+            <!-- Info -->
+            <div class="flex-1 w-full text-center md:text-left">
+                <h3 class="font-bold text-lg text-gray-800 ${decoration}">${block.name}</h3>
+                <div class="text-purple-600 font-semibold text-sm">
+                    ${formatTime(block.startTime)} - ${formatTime(block.endTime)}
+                </div>
+            </div>
+
+            <!-- Checkbox -->
+            <button onclick="toggleTaskComplete(${index})" 
+                class="w-10 h-10 rounded-full ${btnColor} text-white flex items-center justify-center text-xl hover:scale-110 transition shadow-sm shrink-0">
+                ${check}
+            </button>
+        </div>
+    `;
+    }
+
+    function getBreakBlockHTML(block) {
+      return `
+        <div class="bg-green-50 rounded-xl p-4 flex items-center gap-4 border border-green-200 opacity-80">
+            <div class="text-2xl">☕</div>
+            <div class="flex-1">
+                <div class="font-bold text-gray-700">Break</div>
+                <div class="text-green-700 text-sm font-medium">
+                    ${formatTime(block.startTime)} - ${formatTime(block.endTime)} (${block.duration}m)
+                </div>
+            </div>
+        </div>
+    `;
+    }
+
+    function getProTip(settings) {
+      return `
+        <div class="bg-${settings.color}-50 p-4 rounded-xl border-l-4 border-${settings.color}-500 text-sm text-gray-600">
+            <strong>🚀 ${settings.name} Mode Strategy:</strong> 
+            Work ${Math.round(settings.work * 100)}% of the time. Sessions are ${settings.min}-${settings.max} mins.
+        </div>
+    `;
+    }
+
+    function renderModal() {
+      const modal = document.getElementById('congratsModal');
+      if (state.showCongratsModal) {
+        modal.classList.remove('hidden');
+      } else {
+        modal.classList.add('hidden');
+      }
+    }
+
+    // Initial Load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadFromLocalStorage(); // Load saved plan
+      render();
     });
-}
-
-function toggleBlockCompletion(id) {
-    if (appState.completedTasks.has(id)) {
-        appState.completedTasks.delete(id);
-    } else {
-        appState.completedTasks.add(id);
-        // Basic confetti or sound could go here
-    }
-
-    // Re-render to show state
-    renderTimeline();
-    updateStats();
-
-    // Check for win condition
-    const workBlocks = appState.generatedSchedule.filter(b => b.type === 'work');
-    const completedWork = workBlocks.filter(b => appState.completedTasks.has(b.id));
-
-    if (workBlocks.length > 0 && workBlocks.length === completedWork.length) {
-        launchCelebration();
-    }
-}
-
-function updateStats(currentConfig) {
-    // Recalculate based on generated schedule
-    const workBlocks = appState.generatedSchedule.filter(b => b.type === 'work');
-    const breakBlocks = appState.generatedSchedule.filter(b => b.type === 'break');
-
-    const totalWorkMins = workBlocks.reduce((acc, b) => acc + b.duration, 0);
-    const totalBreakMins = breakBlocks.reduce((acc, b) => acc + b.duration, 0);
-
-    // Convert to Hrs Mins
-    const h = Math.floor(totalWorkMins / 60);
-    const m = totalWorkMins % 60;
-
-    elements.statProductiveTime.innerText = `${h}h ${m}m`;
-    elements.statBreakTime.innerText = `${totalBreakMins}m`; // Just minutes is usually clearer for breaks
-
-    // Completion %
-    const completedCount = workBlocks.filter(b => appState.completedTasks.has(b.id)).length;
-    const percent = workBlocks.length === 0 ? 0 : Math.round((completedCount / workBlocks.length) * 100);
-
-    elements.statCompletion.innerText = `${percent}%`;
-    elements.progressText.innerText = `${percent}%`;
-    elements.progressBar.style.width = `${percent}%`;
-
-    // Update color based on progress
-    if (percent === 100) elements.progressBar.classList.add('bg-green-500');
-    else elements.progressBar.classList.remove('bg-green-500');
-}
-
-function provideStrategyTip() {
-    const tips = {
-        light: "Remember: This is a recovery day. Don't skip those breaks!",
-        normal: "Steady pace wins the race. Focus fully during the work blocks.",
-        hustle: "You're in the zone! Keep distractions to zero during sprints."
-    };
-    elements.strategyTip.innerText = `💡 Strategy Tip: ${tips[appState.intensity]}`;
-}
-
-function launchCelebration() {
-    elements.celebrationModal.classList.remove('hidden');
-    // Could add JS canvas confetti here if requested, but sticking to CSS/HTML for now as planned
-}
-
-// Start App
-initListeners();

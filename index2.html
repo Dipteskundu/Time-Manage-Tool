@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Time Management Plan Generator</title>
+  <link rel="icon" type="image/png" href="./assats/white-logo.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./styles.css">
+
+</head>
+
+<body class="bg-gray-50 min-h-screen p-4 md:p-8">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-8 animate-fade-in">
+      <h1 class="text-4xl md:text-5xl font-bold text-blue-600 mb-3">
+        Time Management Plan Generator
+      </h1>
+      <p class="text-gray-600 text-lg">Transform your tasks into an optimized daily schedule</p>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-2xl p-6 md:p-8 mb-8 border border-gray-100">
+
+      <div class="mb-8">
+        <label class="flex items-center gap-2 text-gray-800 font-bold text-lg mb-3">
+          <span class="text-2xl">📝</span>
+          <span>Add Your Tasks (Add work tasks, personal errands, exercise, meetings - anything!) </span>
+        </label>
+        <div class="flex gap-2">
+          <input type="text" id="taskInput" placeholder="Client presentation, Email responses, Gym workout..."
+            class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+            onkeypress="if(event.key === 'Enter') addTask()">
+          <button type="button" onclick="addTask()"
+            class="bg-purple-600 hover:bg-blue-400 text-white px-6 py-3 rounded-xl hover:from-purple-700 hover:to-blue-700 transition shadow-lg hover:shadow-xl flex items-center gap-2 font-semibold">
+            <span class="text-xl">+</span> Add
+          </button>
+        </div>
+        <p class="text-gray-800 font-bold text-lg mt-8 ml- mb-2">Added Tasks </p>
+        <div id="taskList"
+          class="mb-8 min-h-[60px] p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 mt-0"></div>
+      </div>
+
+      <div class="mb-8">
+        <label class="flex items-center gap-2 text-gray-800 font-bold text-lg mb-3">
+          <span class="text-2xl">⏱️</span>
+          <span>Time Available: <span id="hoursDisplay" class="text-purple-600">8</span> hours</span>
+        </label>
+        <input type="range" id="hoursSlider" min="1" max="16" value="8" oninput="updateHours(this.value)"
+          class="w-full h-3 bg-purple-200 rounded-lg appearance-none cursor-pointer" style="accent-color: #9333ea;">
+        <div class="flex justify-between text-xs text-gray-500 mt-1">
+          <span>1hr</span>
+          <span>4hrs</span>
+          <span>8hrs</span>
+          <span>12hrs</span>
+          <span>16hrs</span>
+        </div>
+      </div>
+
+      <div class="mb-8">
+        <label class="flex items-center gap-2 text-gray-800 font-bold text-lg mb-4">
+          <span class="text-2xl">🌅</span>
+          <span>Schedule Window (Start Time)</span>
+        </label>
+        <div id="windowOptions" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <label for="windowMorning"
+            class="flex items-center p-4 border-2 border-gray-300 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-200">
+            <input type="radio" id="windowMorning" name="scheduleWindow" value="morning" checked
+              class="mr-3 text-blue-600 focus:ring-blue-500" onclick="updateWindow('morning')">
+            <div>
+              <div class="font-bold text-gray-800">Morning </div>
+              <div class="text-sm text-gray-500">Starts -7:00 AM</div>
+            </div>
+          </label>
+          <label for="windowDay"
+            class="flex items-center p-4 border-2 border-gray-300 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-200">
+            <input type="radio" id="windowDay" name="scheduleWindow" value="day"
+              class="mr-3 text-blue-600 focus:ring-blue-500" onclick="updateWindow('day')">
+            <div>
+              <div class="font-bold text-gray-800">Day </div>
+              <div class="text-sm text-gray-500">Starts -9:00 AM</div>
+            </div>
+          </label>
+          <label for="windowEvening"
+            class="flex items-center p-4 border-2 border-gray-300 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-200">
+            <input type="radio" id="windowEvening" name="scheduleWindow" value="evening"
+              class="mr-3 text-blue-600 focus:ring-blue-500" onclick="updateWindow('evening')">
+            <div>
+              <div class="font-bold text-gray-800">Evening </div>
+              <div class="text-sm text-gray-500">Starts -6:00 PM</div>
+            </div>
+          </label>
+          <label for="windowNight"
+            class="flex items-center p-4 border-2 border-gray-300 rounded-xl cursor-pointer hover:border-blue-500 transition-all duration-200">
+            <input type="radio" id="windowNight" name="scheduleWindow" value="night"
+              class="mr-3 text-blue-600 focus:ring-blue-500" onclick="updateWindow('night')">
+            <div>
+              <div class="font-bold text-gray-800">Night </div>
+              <div class="text-sm text-gray-500">Starts -10:00 PM</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="mb-8 ">
+        <label class="flex items-center gap-2 text-gray-800 font-bold text-lg mb-4">
+          <span>Day Intensity Level</span>
+        </label>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Light Day -->
+          <button type="button" onclick="setIntensity('light')" id="lightBtn"
+            class="intensity-btn relative group p-8 bg-white border-2 border-gray-100 rounded-3xl hover:border-purple-200 hover:shadow-xl transition-all duration-300 text-center">
+            <div class="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300">🌤️</div>
+            <h3 class="font-extrabold text-2xl text-gray-800 mb-2">Light Day</h3>
+            <div class="text-xs font-bold text-gray-400 tracking-widest uppercase mb-4">Recovery Mode</div>
+            <div class="text-gray-600 text-sm mb-4 leading-relaxed font-medium">
+              • More breaks • Gentle pace
+            </div>
+            <div class="text-xs font-semibold text-gray-400 bg-gray-50 py-2 px-4 rounded-lg inline-block">
+              60% work • 40% breaks
+            </div>
+          </button>
+
+          <!-- Normal Day (Recommended) -->
+          <button type="button" onclick="setIntensity('normal')" id="normalBtn"
+            class="intensity-btn relative group p-8 bg-white border-2 rounded-3xl shadow-2xl transition-all duration-300 text-center border-purple-500 transform scale-105 z-10">
+            <!-- Badge -->
+            <div
+              class="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-600 text-white text-xs font-bold px-4 py-1.5 rounded-full tracking-wider shadow-lg">
+              RECOMMENDED
+            </div>
+            <div class="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300">⚡</div>
+            <h3 class="font-extrabold text-2xl text-gray-800 mb-2">Normal Day</h3>
+            <div class="text-xs font-bold text-gray-400 tracking-widest uppercase mb-4">Balanced Approach</div>
+            <div class="text-gray-600 text-sm mb-4 leading-relaxed font-medium">
+              • Sustainable • Standard productivity
+            </div>
+            <div class="text-xs font-semibold text-gray-400 bg-gray-50 py-2 px-4 rounded-lg inline-block">
+              75% work • 25% breaks
+            </div>
+          </button>
+
+          <!-- Hustle Mode -->
+          <button type="button" onclick="setIntensity('hustle')" id="hustleBtn"
+            class="intensity-btn relative group p-8 bg-white border-2 border-gray-100 rounded-3xl hover:border-orange-200 hover:shadow-xl transition-all duration-300 text-center">
+            <div class="text-5xl mb-6 transform group-hover:scale-110 transition-transform duration-300">🔥</div>
+            <h3 class="font-extrabold text-2xl text-gray-800 mb-2">Hustle Mode</h3>
+            <div class="text-xs font-bold text-gray-400 tracking-widest uppercase mb-4">Maximum Output</div>
+            <div class="text-gray-600 text-sm mb-4 leading-relaxed font-medium">
+              • Deadline driven • Sprint mode
+            </div>
+            <div class="text-xs font-semibold text-gray-400 bg-gray-50 py-2 px-4 rounded-lg inline-block">
+              85% work • 15% breaks
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <button type="button" onclick="generatePlan()"
+        class="w-full bg-purple-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-purple-700 transition-all duration-300 shadow-2xl hover:shadow-3xl hover:scale-105 transform">
+        Generate My Time Management Plan
+      </button>
+    </div>
+
+    <div id="scheduleOutput"></div>
+
+    <div id="congratsModal"
+      class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-bounce-in text-center">
+        <div class="text-6xl mb-4">🎉</div>
+        <h2 class="text-3xl font-bold text-purple-600 mb-4">
+          Congratulations!
+        </h2>
+        <p class="text-gray-700 text-lg mb-6">
+          You've completed all your tasks! Outstanding work! 🚀
+        </p>
+        <div class="bg-purple-50 rounded-xl p-4 mb-6">
+          <p class="text-gray-600 font-medium">
+            You're a productivity champion! Keep up the amazing work! 💪
+          </p>
+        </div>
+        <button type="button" onclick="closeCongratsModal()"
+          class="bg-purple-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-purple-700 transition shadow-lg">
+          Awesome! 🎊
+        </button>
+      </div>
+    </div>
+  </div>
+
+<script src="./script.js"></script>
+</body>
+
+</html>
